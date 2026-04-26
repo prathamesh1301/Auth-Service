@@ -153,5 +153,3 @@ CREATE TABLE refresh_tokens (
 );
 ```
 
-## 📄 License
-MIT
