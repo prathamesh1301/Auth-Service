@@ -46,7 +46,8 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
 			return
 		}
-		if err = app.store.RefreshToken.UpdateRefreshToken(r.Context(), user.Username, refreshToken); err != nil {
+		hashedToken := app.jwt.HashToken(refreshToken)
+		if err = app.store.RefreshToken.UpdateRefreshToken(r.Context(), user.Username, hashedToken); err != nil {
 			http.Error(w, "Error updating refresh token", http.StatusInternalServerError)
 			return
 		}
@@ -86,9 +87,10 @@ func (app *application) signup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
 		return
 	}
+	hashedToken := app.jwt.HashToken(refreshToken)
 	if err = app.store.RefreshToken.InsertRefreshToken(r.Context(), &store.RefreshToken{
 		UserID:    payload.Username,
-		Token:     refreshToken,
+		Token:     hashedToken,
 		ExpiresAt: time.Now().Add(2 * time.Minute),
 	}); err != nil {
 		http.Error(w, "Error inserting refresh token", http.StatusInternalServerError)

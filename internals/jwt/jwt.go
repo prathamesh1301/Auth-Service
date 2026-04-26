@@ -2,7 +2,9 @@ package jwt
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -14,6 +16,7 @@ type TokenService interface {
 	GenerateToken(username string) (string, error)
 	Validate(tokenString string) (bool, error)
 	GenerateRefreshToken() (string, error)
+	HashToken(token string) string
 }
 
 type JWT struct {
@@ -56,4 +59,9 @@ func (s *JWT) GenerateRefreshToken() (string, error) {
 		return "", err
 	}
     return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func (s *JWT) HashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }

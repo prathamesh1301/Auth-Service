@@ -19,7 +19,8 @@ func (app *application) refreshTokenHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	refreshToken, err := app.store.RefreshToken.GetRefreshTokenByToken(r.Context(), payload.RefreshToken)
+	hashedToken := app.jwt.HashToken(payload.RefreshToken)
+	refreshToken, err := app.store.RefreshToken.GetRefreshTokenByToken(r.Context(), hashedToken)
 	if err != nil {
 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 		return
@@ -39,6 +40,6 @@ func (app *application) refreshTokenHandler(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"access_token":  newAccessToken,
-		"refresh_token": refreshToken.Token,
+		"refresh_token": payload.RefreshToken,
 	})
 }
