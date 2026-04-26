@@ -6,11 +6,11 @@ import (
 )
 
 type User struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
-	Password  []byte `json:"-"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	Password     []byte `json:"-"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 // UserRepository defines the interface for user data access.
@@ -55,3 +55,4 @@ func (s *UserStore) CreateUser(ctx context.Context, user *User) (*User, error) {
 	}
 	return user, nil
 }
+

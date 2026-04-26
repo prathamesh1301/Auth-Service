@@ -1,6 +1,8 @@
 package jwt
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 type TokenService interface {
 	GenerateToken(username string) (string, error)
 	Validate(tokenString string) (bool, error)
+	GenerateRefreshToken() (string, error)
 }
 
 type JWT struct {
@@ -25,7 +28,7 @@ func NewJWT(secret string) *JWT {
 func (s *JWT) GenerateToken(username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		"exp":      time.Now().Add(time.Minute * 1).Unix(),
 	})
 	return token.SignedString(s.Secret)
 }
@@ -44,4 +47,13 @@ func (s *JWT) Validate(tokenString string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (s *JWT) GenerateRefreshToken() (string, error) {
+    b := make([]byte, 32)
+    _, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+    return base64.URLEncoding.EncodeToString(b), nil
 }

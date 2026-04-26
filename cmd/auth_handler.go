@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -40,10 +41,20 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error generating token", http.StatusInternalServerError)
 			return
 		}
+		refreshToken, err := app.jwt.GenerateRefreshToken()
+		if err != nil {
+			http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
+			return
+		}
+		if err = app.store.RefreshToken.UpdateRefreshToken(r.Context(), user.Username, refreshToken); err != nil {
+			http.Error(w, "Error updating refresh token", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"access_token": jwtToken,
+			"refresh_token": refreshToken,
 		})
 	}
 }
@@ -70,12 +81,30 @@ func (app *application) signup(w http.ResponseWriter, r *http.Request) {
 			Password: hashedPassword,
 		},
 	)
+	refreshToken, err := app.jwt.GenerateRefreshToken()
 	if err != nil {
-		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
 		return
 	}
+	if err = app.store.RefreshToken.InsertRefreshToken(r.Context(), &store.RefreshToken{
+		UserID:    payload.Username,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(2 * time.Minute),
+	}); err != nil {
+		http.Error(w, "Error inserting refresh token", http.StatusInternalServerError)
+		return
+	}
+	jwtToken, err := app.jwt.GenerateToken(payload.Username)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User created successfully"))
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": jwtToken,
+		"refresh_token": refreshToken,
+	})
 }
 
 func (app *application) ValidateTokenMiddleware(next http.Handler) http.Handler {

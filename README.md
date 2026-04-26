@@ -9,6 +9,7 @@ cmd/                        → Application entrypoint & HTTP handlers
 ├── main.go                 → Bootstrap (config, DB, DI)
 ├── app.go                  → Router setup, server start
 ├── auth_handler.go         → Login, Signup, JWT middleware
+├── refresh_token_handler.go→ Refresh token handler
 └── health.go               → Health check (protected)
 
 internals/
@@ -18,7 +19,8 @@ internals/
 │   └── jwt.go              → Token generation & validation
 └── store/
     ├── store.go             → Data access aggregator
-    └── user.go              → User repository (SQL queries)
+    ├── user.go              → User repository (SQL queries)
+    └── refresh_token.go     → Refresh token repository
 
 migrations/                 → SQL migration files (golang-migrate)
 ```
@@ -99,7 +101,13 @@ curl.exe -X POST http://localhost:8080/signup ^
   -d "{\"username\": \"john\", \"password\": \"mypassword\"}"
 ```
 
-**Response:** `201 Created` — `User created successfully`
+**Response:** `201 Created`
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "12345abcdef..."
+}
+```
 
 ---
 
@@ -115,7 +123,27 @@ curl.exe -X POST http://localhost:8080/login ^
 **Response:** `200 OK`
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs..."
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "12345abcdef..."
+}
+```
+
+---
+
+#### `POST /refreshToken`
+Generate a new access token using a valid refresh token.
+
+```bash
+curl.exe -X POST http://localhost:8080/refreshToken ^
+  -H "Content-Type: application/json" ^
+  -d "{\"refresh_token\": \"<your-refresh-token>\"}"
+```
+
+**Response:** `200 OK`
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "<your-refresh-token>"
 }
 ```
 
@@ -138,13 +166,17 @@ curl.exe -X GET http://localhost:8080/health ^
 ```sql
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
-    username      VARCHAR(255) NOT NULL,
+    username      VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT REFERENCES users(username),
+    token TEXT UNIQUE,
+    expires_at TIMESTAMP
+);
 ```
 
-## License
-
-MIT

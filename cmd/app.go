@@ -37,6 +37,7 @@ func (app *application) getMuxHandler() http.Handler {
 		})
 		r.Post("/login", app.login)
 		r.Post("/signup", app.signup)
+		r.Post("/refreshToken", app.refreshTokenHandler)
 	})
 
 	// -------- Protected routes --------
