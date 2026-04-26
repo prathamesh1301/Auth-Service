@@ -3,6 +3,7 @@ package main
 import (
 	"auth/internals/store"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -47,10 +48,19 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		hashedToken := app.jwt.HashToken(refreshToken)
-		if err = app.store.RefreshToken.UpdateRefreshToken(r.Context(), user.Username, hashedToken); err != nil {
-			http.Error(w, "Error updating refresh token", http.StatusInternalServerError)
+		if err = app.store.RefreshToken.InsertRefreshToken(r.Context(), &store.RefreshToken{
+			UserID:    user.Username,
+			Token:     hashedToken,
+			ExpiresAt: time.Now().Add(2 * time.Minute),
+		}); err != nil {
+			http.Error(w, "Error inserting refresh token", http.StatusInternalServerError)
 			return
 		}
+		
+		if err = app.store.RefreshToken.EnforceSessionLimit(r.Context(), user.Username, 5); err != nil {
+			log.Println("Failed to enforce session limit:", err)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
@@ -96,6 +106,11 @@ func (app *application) signup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error inserting refresh token", http.StatusInternalServerError)
 		return
 	}
+	
+	if err = app.store.RefreshToken.EnforceSessionLimit(r.Context(), payload.Username, 5); err != nil {
+		log.Println("Failed to enforce session limit:", err)
+	}
+
 	jwtToken, err := app.jwt.GenerateToken(payload.Username)
 	if err != nil {
 		http.Error(w, "Error generating token", http.StatusInternalServerError)

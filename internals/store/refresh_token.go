@@ -17,6 +17,7 @@ type RefreshTokenStore interface {
 	GetRefreshTokenByToken(ctx context.Context, token string) (*RefreshToken, error)
 	InsertRefreshToken(ctx context.Context, refreshToken *RefreshToken) error
 	UpdateRefreshToken(ctx context.Context, userID string, token string) error
+	EnforceSessionLimit(ctx context.Context, userID string, maxSessions int) error
 }
 
 type RefreshTokenStoreImpl struct {
@@ -54,4 +55,17 @@ func(s *RefreshTokenStoreImpl) UpdateRefreshToken(ctx context.Context, userID st
 		return err
 	}
 	return nil
+}
+
+func(s *RefreshTokenStoreImpl) EnforceSessionLimit(ctx context.Context, userID string, maxSessions int) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE id IN (
+			SELECT id FROM refresh_tokens
+			WHERE user_id = $1
+			ORDER BY id DESC
+			OFFSET $2
+		)`
+	_, err := s.db.ExecContext(ctx, query, userID, maxSessions)
+	return err
 }
